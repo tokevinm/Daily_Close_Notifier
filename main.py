@@ -59,3 +59,6 @@ for user in users_data:
             email_message += message_add
     email_message += f"\n Total Cryptocurrency Market Cap: {total_crypto_mcap}"
     email_manager.send_emails(user_email, email_message.encode('utf-8'))
+
+
+# Edit for Pull Request for advice/comments
