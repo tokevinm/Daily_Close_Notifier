@@ -1,20 +1,17 @@
-import requests
 import asset_data
 import email_notifier
 
 data_manager = asset_data.DataManager()
-data_manager.update_price_data()
-crypto_data = data_manager.crypto_data
+data_manager.update_asset_data()
+data_manager.update_global_data()
 global_data = data_manager.global_data
 email_manager = email_notifier.EmailNotifier()
 users_data = email_manager.get_emails_data()
 
-
-# TODO Add comparisons to stock market data / top 10 companies mcap
 total_crypto_mcap = '${:,.2f}'.format(global_data["data"]["total_market_cap"]["usd"])
-# total crypto mcap
+# Total crypto mcap
 crypto_mcap_perc_total = global_data["data"]["market_cap_percentage"]
-# crypto_mcap_perc is a dictionary of top10 assets and percentages
+# crypto_mcap_perc is a dictionary of top10 assets and percentages of total market cap
 
 btc_data = data_manager.format_data("bitcoin")
 btc_mcap_percent = f"{round(crypto_mcap_perc_total["btc"], 2)}%"
@@ -29,15 +26,14 @@ doge_data = data_manager.format_data("dogecoin")
 doge_mcap_percent = f"{round(crypto_mcap_perc_total["doge"], 2)}%"
 
 
-# TODO MAYBE Create function for up_down, if wanna add functionality for other assets
 up_down = None
 if float(btc_data["24h_perc"]) > 0:
     up_down = "🔺"
 elif float(btc_data["24h_perc"]) < 0:
     up_down = "🔻"
+else:
+    up_down = ""
 
-
-# TODO Create a function for user_option
 for user in users_data:
     user_email = user["pleaseEnterYourEmailAddress:"]
     user_option = user.get("anyExtraDataYou'dLikeInYourReport?", None)
