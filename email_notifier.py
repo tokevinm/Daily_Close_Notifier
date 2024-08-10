@@ -10,14 +10,14 @@ class EmailNotifier:
     def __init__(self):
         self._smtp_username = os.environ["SMTP_USERNAME"]
         self._smtp_password = os.environ["SMTP_PASSWORD"]
-        self._sheety_users_endpoint = os.environ["SHEETY_USERS_ENDPOINT"]
+        self._sheety_endpoint = os.environ["SHEETY_USERS_ENDPOINT"]
         self.sheety_header = {"Authorization": os.environ["SHEETY_BEARER"]}
         self.users_data = []
 
     def get_emails_data(self):
         """API request to get stored user data"""
         users_response = requests.get(
-            self._sheety_users_endpoint,
+            self._sheety_endpoint,
             headers=self.sheety_header
         )
         users_response.raise_for_status()
