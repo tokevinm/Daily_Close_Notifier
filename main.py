@@ -2,23 +2,31 @@ from asset_data import DataManager
 from email_notifier import EmailNotifier
 from datetime import datetime
 
-data_manager = DataManager()
-data_manager.update_asset_data()
-data_manager.update_global_data()
-email_manager = EmailNotifier()
-users_data = email_manager.get_emails_data()
+data_man = DataManager()
+data_man.format_asset_data()
+data_man.update_global_data()
+asset_data = data_man.cg_assets_data
 
-total_crypto_mcap = '${:,.2f}'.format(data_manager.cg_global_data["data"]["total_market_cap"]["usd"])
+email_man = EmailNotifier()
+users_data = email_man.get_emails_data()
 
-btc_data = data_manager.format_data("bitcoin", "btc")
-eth_data = data_manager.format_data("ethereum", "eth")
-sol_data = data_manager.format_data("solana", "sol")
-doge_data = data_manager.format_data("dogecoin", "doge")
 
-btc_icon = data_manager.daily_icon(btc_data["24h_change_percent"])
-eth_icon = data_manager.daily_icon(eth_data["24h_change_percent"])
-sol_icon = data_manager.daily_icon(sol_data["24h_change_percent"])
-doge_icon = data_manager.daily_icon(doge_data["24h_change_percent"])
+def daily_icon(percent_change):
+    """Takes the 24h % change in price and returns an icon to make it easier
+    to discern divergences between assets/asset classes"""
+    if float(percent_change) > 0:
+        icon = "🔺"
+    elif float(percent_change) < 0:
+        icon = "🔻"
+    else:
+        icon = ""
+    return icon
+
+
+btc_icon = daily_icon(asset_data["bitcoin"]["24h_change_percent"])
+eth_icon = daily_icon(asset_data["ethereum"]["24h_change_percent"])
+sol_icon = daily_icon(asset_data["solana"]["24h_change_percent"])
+doge_icon = daily_icon(asset_data["dogecoin"]["24h_change_percent"])
 
 day_of_month = datetime.now().strftime("%d")
 day_of_week = datetime.now().strftime("%w")
@@ -32,18 +40,22 @@ else:
 for user in users_data:
     user_email = user["pleaseEnterYourEmailAddress:"]
     user_option = user.get("anyExtraDataYou'dLikeInYourReport?", None)
-    email_message = (f"Subject:BTC {close_significance} Close: "
-                     f"{btc_data["price"]} {btc_icon}{btc_data["24h_change_percent"]}%\n\n")
+    message_body = (f"Subject:BTC {close_significance} Close: "
+                    f"{asset_data["bitcoin"]["price"]} {btc_icon}{asset_data["bitcoin"]["24h_change_percent"]}%\n\n")
     if user_option is not None:
         user_choices = user_option.split()
         if "Ethereum" in user_choices:
-            message_add = f"ETH: {eth_data["price"]} {eth_icon}{eth_data["24h_change_percent"]}%\n"
-            email_message += message_add
+            message_add = (f"ETH: {asset_data["ethereum"]["price"]} "
+                           f"{eth_icon}{asset_data["ethereum"]["24h_change_percent"]}%\n")
+            message_body += message_add
         if "Solana" in user_choices:
-            message_add = f"SOL: {sol_data["price"]} {sol_icon}{sol_data["24h_change_percent"]}%\n"
-            email_message += message_add
+            message_add = (f"SOL: {asset_data["solana"]["price"]} "
+                           f"{sol_icon}{asset_data["solana"]["24h_change_percent"]}%\n")
+            message_body += message_add
         if "Dogecoin" in user_choices:
-            message_add = f"DOGE: {doge_data["price"]} {doge_icon}{doge_data["24h_change_percent"]}%\n"
-            email_message += message_add
-    email_message += f"\nBTC Market Cap: \n{btc_data["mcap"]}\nTotal Cryptocurrency Market Cap: \n{total_crypto_mcap}"
-    email_manager.send_emails(user_email, email_message.encode('utf-8'))
+            message_add = (f"DOGE: {asset_data["dogecoin"]["price"]} "
+                           f"{doge_icon}{asset_data["dogecoin"]["24h_change_percent"]}%\n")
+            message_body += message_add
+    message_body += (f"\nBTC Market Cap: \n{asset_data["bitcoin"]["mcap"]}\n"
+                     f"Total Cryptocurrency Market Cap: \n{data_man.crypto_total_mcap}")
+    email_man.send_emails(user_email, message_body.encode('utf-8'))

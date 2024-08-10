@@ -24,7 +24,7 @@ class EmailNotifier:
         self.users_data = users_response.json()["users"]
         return self.users_data
 
-    def send_emails(self, user_email, message_body):
+    def send_emails(self, user_email, message):
         """Sends requested data to user emails via SMTP and checks for successful delivery"""
         try:
             with smtplib.SMTP("smtp.gmail.com", port=587) as connection:
@@ -33,7 +33,7 @@ class EmailNotifier:
                 result = connection.sendmail(
                     from_addr=self._smtp_username,
                     to_addrs=user_email,
-                    msg=message_body
+                    msg=message
                 )
             if not result:
                 print(f"Emailed {user_email} successfully!")
