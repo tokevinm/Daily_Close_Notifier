@@ -42,6 +42,7 @@ class DataManager:
         }
         return asset_dict
 
+    # TODO - add unit testing
     def format_asset_data(self):
         """Consolidates asset data into a single dictionary to be accessed"""
         for i in range(len(self.cg_assets_list)):
