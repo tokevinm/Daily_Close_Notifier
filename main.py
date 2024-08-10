@@ -32,6 +32,7 @@ day_of_month = datetime.now().strftime("%d")
 day_of_week = datetime.now().strftime("%w")
 if day_of_month == "01":
     close_significance = "MONTHLY"
+    # ADD Comment testing
 elif day_of_week == "0":
     close_significance = "WEEKLY"
 else:
