@@ -80,10 +80,3 @@ class DataManager:
             self.crypto_mcap_perc_total = self.cg_global_data["data"]["market_cap_percentage"]
         if self.cg_global_data["data"]["total_market_cap"]["usd"]:
             self.crypto_total_mcap = '${:,.2f}'.format(self.cg_global_data["data"]["total_market_cap"]["usd"])
-
-
-if __name__ == '__main__':
-    bob = DataManager()
-    print(bob.get_asset_data("bitcoin"))
-    response = requests.get("https://api.coingecko.com/api/v3/coins/list")
-    print(response.json())
