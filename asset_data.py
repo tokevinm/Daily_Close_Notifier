@@ -9,7 +9,12 @@ class DataManager:
     def __init__(self):
 
         self.cg_endpoint = "https://api.coingecko.com/api/v3"
-        self.cg_assets_list = ["bitcoin", "ethereum", "solana", "dogecoin"]
+        self.cg_assets_list = [
+            "bitcoin",
+            "ethereum",
+            "solana",
+            "dogecoin"
+        ]
         self.cg_assets_data = {}
         self.cg_global_data = {}
         self.crypto_mcap_perc_total = None
@@ -18,6 +23,7 @@ class DataManager:
         self.cg_header = {
             "x_cg_demo_api_key": os.environ["CG_API_KEY"],
         }
+
 
     def get_asset_data(self, asset):
         """Gets user requested data from CoinGecko API and formats it into a dictionary.
@@ -79,3 +85,5 @@ class DataManager:
 if __name__ == '__main__':
     bob = DataManager()
     print(bob.get_asset_data("bitcoin"))
+    response = requests.get("https://api.coingecko.com/api/v3/coins/list")
+    print(response.json())
