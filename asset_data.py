@@ -9,8 +9,12 @@ class DataManager:
     def __init__(self):
 
         self.cg_endpoint = "https://api.coingecko.com/api/v3"
-        self.cg_assets = "bitcoin,ethereum,solana,dogecoin"
-        self.cg_assets_list = self.cg_assets.split(",")
+        self.cg_assets_list = [
+            "bitcoin",
+            "ethereum",
+            "solana",
+            "dogecoin"
+        ]
         self.cg_assets_data = {}
         self.cg_global_data = {}
         self.crypto_mcap_perc_total = None
@@ -19,6 +23,7 @@ class DataManager:
         self.cg_header = {
             "x_cg_demo_api_key": os.environ["CG_API_KEY"],
         }
+
 
     def get_asset_data(self, asset):
         """Gets user requested data from CoinGecko API and formats it into a dictionary.
@@ -30,15 +35,30 @@ class DataManager:
         )
         asset_response.raise_for_status()
         data = asset_response.json()
+
+        ticker = data["symbol"]
+        ticker_upper = ticker.upper()
+        if float(data["market_data"]["current_price"]["usd"]) >= 1:
+            price = '${:,.2f}'.format(data["market_data"]["current_price"]["usd"])
+        else:
+            price = '${:,.4f}'.format(data["market_data"]["current_price"]["usd"])
+        mcap = '${:,.2f}'.format(data["market_data"]["market_cap"]["usd"])
+        total_volume = '${:,.2f}'.format(data["market_data"]["total_volume"]["usd"])
+        change_usd_24h = '${:,.2f}'.format(data["market_data"]["price_change_24h_in_currency"]["usd"])
+        change_percent_24h = f"{round(data["market_data"]["price_change_percentage_24h"], 2)}"
+        change_percent_7d = f"{round(data["market_data"]["price_change_percentage_7d"], 2)}"
+        change_percent_30d = f"{round(data["market_data"]["price_change_percentage_30d"], 2)}"
+
         asset_dict = {
-            "ticker": data["symbol"],
-            "price": '${:,.2f}'.format(data["market_data"]["current_price"]["usd"]),
-            "mcap": '${:,.2f}'.format(data["market_data"]["market_cap"]["usd"]),
-            "total_volume": '${:,.2f}'.format(data["market_data"]["total_volume"]["usd"]),
-            "24h_change_usd": '${:,.2f}'.format(data["market_data"]["price_change_24h_in_currency"]["usd"]),
-            "24h_change_percent": f"{round(data["market_data"]["price_change_percentage_24h"], 2)}",
-            "7d_change_percent": f"{round(data["market_data"]["price_change_percentage_7d"], 2)}",
-            "30d_change_percent": f"{round(data["market_data"]["price_change_percentage_30d"], 2)}",
+            "ticker": ticker,
+            "ticker_upper": ticker_upper,
+            "price": price,
+            "mcap": mcap,
+            "total_volume": total_volume,
+            "24h_change_usd": change_usd_24h,
+            "24h_change_percent": change_percent_24h,
+            "7d_change_percent": change_percent_7d,
+            "30d_change_percent": change_percent_30d,
         }
         return asset_dict
 
@@ -65,3 +85,5 @@ class DataManager:
 if __name__ == '__main__':
     bob = DataManager()
     print(bob.get_asset_data("bitcoin"))
+    response = requests.get("https://api.coingecko.com/api/v3/coins/list")
+    print(response.json())
