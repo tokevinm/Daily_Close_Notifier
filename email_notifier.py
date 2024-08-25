@@ -26,6 +26,7 @@ class EmailNotifier:
 
     def send_emails(self, user_email, message):
         """Sends requested data to user emails via SMTP and checks for successful delivery"""
+        print(f"Emailing {user_email}...")
         try:
             with smtplib.SMTP("smtp.gmail.com", port=587) as connection:
                 connection.starttls()
