@@ -47,7 +47,7 @@ if day_of_month == "01":
     close_significance = "MONTHLY"
     interval = "30D"
     interval_percent = "30d_change_percent"
-elif day_of_week == "0":
+elif day_of_week == "1":
     close_significance = "WEEKLY"
     interval = "7D"
     interval_percent = "7d_change_percent"
