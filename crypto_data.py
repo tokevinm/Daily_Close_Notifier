@@ -76,10 +76,3 @@ class CryptoManager:
             self.crypto_total_mcap_top10_percents = self.cg_global_crypto_data["data"]["market_cap_percentage"]
         if self.cg_global_crypto_data["data"]["total_market_cap"]["usd"]:
             self.crypto_total_mcap = '${:,.2f}'.format(self.cg_global_crypto_data["data"]["total_market_cap"]["usd"])
-
-
-if __name__ == '__main__':
-    test = CryptoManager()
-    test.get_crypto_data()
-    print(test.cg_crypto_data)
-

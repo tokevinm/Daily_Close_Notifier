@@ -71,8 +71,3 @@ class StockManager:
             }
             self.index_data[ticker] = index_dict
             print(f"Updated {index} data.")
-
-
-if __name__ == "__main__":
-    test = StockManager()
-    print(test.get_index_data())
