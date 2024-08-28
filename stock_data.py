@@ -8,6 +8,7 @@ load_dotenv()
 class StockManager:
     """Requests, manages, and formats data received from the TwelveData API"""
     def __init__(self):
+        self.td_endpoint = "https://api.twelvedata.com/quote"
         self.index_list = ["SPX", "NDX", "DJI"]
         self.index_data = {}
 
@@ -16,7 +17,7 @@ class StockManager:
         Also adds commas/punctuation and rounds to two decimal places."""
         for index in self.index_list:
             response = requests.get(
-                url="https://api.twelvedata.com/quote",
+                url=self.td_endpoint,
                 params={
                     "apikey": os.environ.get("TD_API_KEY"),
                     "symbol": index,
@@ -40,9 +41,9 @@ class StockManager:
             elif day_of_week == "0":
                 interval = "1week"
             else:
-                interval = ""
+                interval = "1day"  # API default
             response = requests.get(
-                url="https://api.twelvedata.com/quote",
+                url=self.td_endpoint,
                 params={
                     "apikey": os.environ.get("TD_API_KEY"),
                     "symbol": index,

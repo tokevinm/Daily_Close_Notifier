@@ -3,6 +3,9 @@ from email_notifier import EmailNotifier
 from stock_data import StockManager
 from datetime import datetime
 
+MONTHLY = "MONTHLY"
+WEEKLY = "WEEKLY"
+
 crypto_man = CryptoManager()
 crypto_man.get_crypto_data()
 crypto_man.get_global_crypto_data()
@@ -43,12 +46,13 @@ def htf_msg(timeframe, percent_change):
 
 day_of_month = datetime.now().strftime("%d")
 day_of_week = datetime.now().strftime("%w")
+
 if day_of_month == "01":
-    close_significance = "MONTHLY"
+    close_significance = MONTHLY
     interval = "30D"
     interval_percent = "30d_change_percent"
 elif day_of_week == "1":
-    close_significance = "WEEKLY"
+    close_significance = WEEKLY
     interval = "7D"
     interval_percent = "7d_change_percent"
 else:
@@ -67,13 +71,14 @@ for user in users_data:
         price=crypto_data["bitcoin"]["price"],
         percent_change=crypto_data["bitcoin"]["24h_change_percent"]
     )
-    if close_significance == "MONTHLY" or close_significance == "WEEKLY":
+    if close_significance == MONTHLY or close_significance == WEEKLY:
         btc_wm_up_down = up_down_icon(crypto_data["bitcoin"][interval_percent])
         message_body += (f"{close_significance.title()} Change ({interval}) "
-                         f"{btc_wm_up_down} {crypto_data["bitcoin"][interval_percent]}%\n\n")
+                         f"{btc_wm_up_down} {crypto_data["bitcoin"][interval_percent]}%\n")
+    message_body += "\n"
 
     if user_options:
-        user_choices = user_options.split()[::2]
+        user_choices = user_options.split()[::2]  # JSON format split from: Ethereum (ETH), Solana (SOL), etc
         message_body += "Crypto:\n"
         for choice in user_choices:
             crypto_dict = crypto_data[choice.lower()]
@@ -82,7 +87,7 @@ for user in users_data:
                 price=crypto_dict["price"],
                 percent_change=crypto_dict["24h_change_percent"]
             )
-            if close_significance == "MONTHLY" or close_significance == "WEEKLY":
+            if close_significance == MONTHLY or close_significance == WEEKLY:
                 message_body += htf_msg(
                     timeframe=interval,
                     percent_change=crypto_dict[interval_percent]
@@ -97,7 +102,7 @@ for user in users_data:
             price=stock_dict["price"],
             percent_change=stock_dict["24h_change_percent"]
         )
-        if close_significance == "MONTHLY" or close_significance == "WEEKLY":
+        if close_significance == MONTHLY or close_significance == WEEKLY:
             message_body += htf_msg(
                 timeframe=interval,
                 percent_change=stock_dict["wm_change_percent"]

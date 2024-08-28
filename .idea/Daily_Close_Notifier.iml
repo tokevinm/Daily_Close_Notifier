@@ -4,8 +4,7 @@
     <content url="file://$MODULE_DIR$">
       <excludeFolder url="file://$MODULE_DIR$/.venv" />
     </content>
-    <orderEntry type="jdk" jdkName="Python 3.12 (100D_38_Exercise_Tracker)" jdkType="Python SDK" />
+    <orderEntry type="jdk" jdkName="Python 3.12 (Daily_Close_Notifier)" jdkType="Python SDK" />
     <orderEntry type="sourceFolder" forTests="false" />
-    <orderEntry type="module" module-name="SCRATCH" />
   </component>
 </module>
