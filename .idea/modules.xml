@@ -3,7 +3,6 @@
   <component name="ProjectModuleManager">
     <modules>
       <module fileurl="file://$PROJECT_DIR$/.idea/Daily_Close_Notifier.iml" filepath="$PROJECT_DIR$/.idea/Daily_Close_Notifier.iml" />
-      <module fileurl="file://$PROJECT_DIR$/../SCRATCH/.idea/SCRATCH.iml" filepath="$PROJECT_DIR$/../SCRATCH/.idea/SCRATCH.iml" />
     </modules>
   </component>
 </project>
