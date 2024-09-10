@@ -33,7 +33,7 @@ class EmailNotifier:
                 connection.login(user=self.smtp_username, password=self._smtp_password)
                 result = connection.sendmail(
                     from_addr=self.smtp_username,
-                    to_addrs="k1wsnt@gmail.com",
+                    to_addrs=user_email,
                     msg=message
                 )
             if not result:
