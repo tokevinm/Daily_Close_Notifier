@@ -44,6 +44,34 @@ def htf_msg(timeframe, percent_change):
     return message_add
 
 
+def format_options(options_string):
+    """Receives a JSON formatted string of user chosen cryptocurrencies
+    and formats into a list that is compatible with the Coingecko API asset IDs"""
+    options = options_string.split()
+    if "Toncoin" in options:
+        index = options.index("Toncoin")
+        options[index] = "the-open-network"
+    if "Avalanche" in options:
+        index = options.index("Avalanche")
+        options[index] = "avalanche-2"
+    if "Near" in options:
+        options.remove("Protocol")
+    if "DogWifHat" in options:
+        index = options.index("DogWifHat")
+        options[index] = "dogwifcoin"
+    if "Polygon" in options:
+        index = options.index("Polygon")
+        options[index] = "polygon-ecosystem-token"
+    if "Ondo" in options:
+        index = options.index("Ondo")
+        options[index] = "ondo-finance"
+    if "Mother" in options:
+        index = options.index("Mother")
+        options.remove("Iggy")
+        options[index] = "mother-iggy"
+    return options
+
+
 day_of_month = datetime.now().strftime("%d")
 day_of_week = datetime.now().strftime("%w")
 
@@ -56,16 +84,16 @@ elif day_of_week == "1":
     interval = "7D"
     interval_percent = "7d_change_percent"
 else:
-    close_significance = "Daily"
+    close_significance = "Daily"  # Default
     interval = "1D"
-    interval_percent = ""
+    interval_percent = "24h_change_percent"
 
 for user in users_data:
-    user_email = user["pleaseEnterYourEmailAddress:"]
+    user_email = user["emailAddress"]
     user_options = user.get("anyExtraDataYou'dLikeInYourReport?", None)
     print(f"Compiling daily report for {user_email}...")
 
-    message_body = f"Subject:BTC {close_significance} Close: {crypto_data["bitcoin"]["price"]}\n\n"
+    message_body = f"Subject:BTC {close_significance} Close: {crypto_data['bitcoin']['price']}\n\n"
     message_body += default_msg(
         ticker=crypto_data["bitcoin"]["ticker_upper"],
         price=crypto_data["bitcoin"]["price"],
@@ -74,11 +102,11 @@ for user in users_data:
     if close_significance == MONTHLY or close_significance == WEEKLY:
         btc_wm_up_down = up_down_icon(crypto_data["bitcoin"][interval_percent])
         message_body += (f"{close_significance.title()} Change ({interval}) "
-                         f"{btc_wm_up_down} {crypto_data["bitcoin"][interval_percent]}%\n")
+                         f"{btc_wm_up_down} {crypto_data['bitcoin'][interval_percent]}%\n")
     message_body += "\n"
 
     if user_options:
-        user_choices = user_options.split()[::2]  # JSON format split from: Ethereum (ETH), Solana (SOL), etc
+        user_choices = format_options(user_options)[::2]
         message_body += "Crypto:\n"
         for choice in user_choices:
             crypto_dict = crypto_data[choice.lower()]
@@ -95,8 +123,8 @@ for user in users_data:
         message_body += "\n"
 
     message_body += "Stocks:\n"
-    for index in stock_data:
-        stock_dict = stock_data[index]
+    for stock in stock_data:
+        stock_dict = stock_data[stock]
         message_body += default_msg(
             ticker=stock_dict["ticker"],
             price=stock_dict["price"],
@@ -108,6 +136,9 @@ for user in users_data:
                 percent_change=stock_dict["wm_change_percent"]
             )
 
-    message_body += (f"\nBTC Market Cap: \n{crypto_data["bitcoin"]["mcap"]}\n"
+    message_body += (f"\nBTC Market Cap: \n{crypto_data['bitcoin']['mcap']}\n"
                      f"Total Cryptocurrency Market Cap: \n{crypto_man.crypto_total_mcap}")
     email_man.send_emails(user_email, message_body.encode('utf-8'))
+
+if __name__ == "__main__":
+    pass

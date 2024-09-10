@@ -12,7 +12,29 @@ class CryptoManager:
             "bitcoin",
             "ethereum",
             "solana",
-            "dogecoin"
+            "dogecoin",
+            "binancecoin",
+            "ripple",
+            "the-open-network",
+            "cardano",
+            "tron",
+            "avalanche-2",
+            "shiba-inu",
+            "chainlink",
+            "polkadot",
+            "uniswap",
+            "litecoin",
+            "near",
+            "monero",
+            "pepe",
+            "aptos",
+            "sui",
+            "bittensor",
+            "optimism",
+            "dogwifcoin",
+            "polygon-ecosystem-token",
+            "ondo-finance",
+            "mother-iggy"
         ]
         self.cg_crypto_data = {}
         self.cg_global_crypto_data = {}
@@ -21,7 +43,7 @@ class CryptoManager:
         # crypto_total_mcap_top10_percents is a dictionary of top-10 cryptos and their percentages of total mcap
         self.crypto_total_mcap = None
         self.cg_header = {
-            "x_cg_demo_api_key": os.environ["CG_API_KEY"],
+            "x-cg-demo-api-key": os.environ["CG_API_KEY"],
         }
 
     def get_crypto_data(self):
@@ -41,14 +63,16 @@ class CryptoManager:
             ticker_upper = ticker.upper()
             if float(data["market_data"]["current_price"]["usd"]) >= 1:
                 price = '${:,.2f}'.format(data["market_data"]["current_price"]["usd"])
-            else:
+            elif float(data["market_data"]["current_price"]["usd"]) >= 0.01:
                 price = '${:,.4f}'.format(data["market_data"]["current_price"]["usd"])
+            else:
+                price = '${:,.8f}'.format(data["market_data"]["current_price"]["usd"])
             mcap = '${:,.2f}'.format(data["market_data"]["market_cap"]["usd"])
             total_volume = '${:,.2f}'.format(data["market_data"]["total_volume"]["usd"])
             change_usd_24h = '{:,.2f}'.format(data["market_data"]["price_change_24h_in_currency"]["usd"])
-            change_percent_24h = f"{round(data["market_data"]["price_change_percentage_24h"], 2)}"
-            change_percent_7d = f"{round(data["market_data"]["price_change_percentage_7d"], 2)}"
-            change_percent_30d = f"{round(data["market_data"]["price_change_percentage_30d"], 2)}"
+            change_percent_24h = f"{round(data['market_data']['price_change_percentage_24h'], 2)}"
+            change_percent_7d = f"{round(data['market_data']['price_change_percentage_7d'], 2)}"
+            change_percent_30d = f"{round(data['market_data']['price_change_percentage_30d'], 2)}"
 
             asset_dict = {
                 "ticker": ticker,
@@ -76,3 +100,4 @@ class CryptoManager:
             self.crypto_total_mcap_top10_percents = self.cg_global_crypto_data["data"]["market_cap_percentage"]
         if self.cg_global_crypto_data["data"]["total_market_cap"]["usd"]:
             self.crypto_total_mcap = '${:,.2f}'.format(self.cg_global_crypto_data["data"]["total_market_cap"]["usd"])
+
