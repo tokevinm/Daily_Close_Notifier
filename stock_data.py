@@ -32,7 +32,7 @@ class StockManager:
             price_float = float(data["close"])
             price = '${:,.2f}'.format(price_float)
             change_usd_24h = '{:,.2f}'.format(float(data["change"]))
-            change_percent_24h = f"{round(float(data["percent_change"]), 2)}"
+            change_percent_24h = f"{round(float(data['percent_change']), 2)}"
 
             day_of_month = datetime.now().strftime("%d")
             day_of_week = datetime.now().strftime("%w")
@@ -54,7 +54,7 @@ class StockManager:
             wm_data = response.json()
 
             change_usd_wm = '{:,.2f}'.format(float(wm_data["change"]))
-            change_percent_wm = f"{round(float(wm_data["percent_change"]), 2)}"
+            change_percent_wm = f"{round(float(wm_data['percent_change']), 2)}"
             # If code is run 00:00UTC Monday, want last weekly open instead of last Monday's close
             if interval == "1week":
                 prev_weekly_close = wm_data["open"]
