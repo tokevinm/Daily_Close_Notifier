@@ -2,3 +2,5 @@
 __pycache__
 .venv/
 notes.txt
+emailtest.py
+stock_data_polygon.py

@@ -1,74 +1,64 @@
 import os
-import requests
-from datetime import datetime
+import httpx
 from dotenv import load_dotenv
+
 load_dotenv()
 
 
 class StockManager:
-    """Requests, manages, and formats data received from the TwelveData API"""
+    """Requests, manages, and formats data received from the RapidAPI "Trading View" API"""
+
     def __init__(self):
-        self.td_endpoint = "https://api.twelvedata.com/quote"
-        self.index_list = ["SPX", "NDX", "DJI"]
-        self.index_data = {}
+        self._rapidapi_TV_endpoint = "https://trading-view.p.rapidapi.com/stocks/get-financials"
+        self.index_list = ["SP:SPX", "NASDAQ:NDX", "DJ:DJI"]
+        self.index_data = {
+            "SPX": None,
+            "NDX": None,
+            "DJI": None
+        }
+        self._rapidapi_headers = {
+            "x-rapidapi-key": os.environ["RAPIDAPI_KEY"],
+            "x-rapidapi-host": "trading-view.p.rapidapi.com"
+        }
 
-    def get_index_data(self):
-        """Gets stock index data from TwelveData API and formats into a nested dictionary.
+    async def get_index_data(self, stock_index):
+        """Gets stock index data from "Trading View" on RapidAPI and formats into a nested dictionary.
         Also adds commas/punctuation and rounds to two decimal places."""
-        for index in self.index_list:
-            response = requests.get(
-                url=self.td_endpoint,
-                params={
-                    "apikey": os.environ.get("TD_API_KEY"),
-                    "symbol": index,
-                    "interval": "1day"
-                }
-            )
-            response.raise_for_status()
-            data = response.json()
-            print(f"Getting data for {index}...")
 
-            ticker = data["symbol"]
-            price_float = float(data["close"])
-            price = '${:,.2f}'.format(price_float)
-            change_usd_24h = '{:,.2f}'.format(float(data["change"]))
-            change_percent_24h = f"{round(float(data['percent_change']), 2)}"
-
-            day_of_month = datetime.now().strftime("%d")
-            day_of_week = datetime.now().strftime("%w")
-            if day_of_month == "24":
-                interval = "1month"
-            elif day_of_week == "0":
-                interval = "1week"
-            else:
-                interval = "1day"  # API default
-            response = requests.get(
-                url=self.td_endpoint,
-                params={
-                    "apikey": os.environ.get("TD_API_KEY"),
-                    "symbol": index,
-                    "interval": interval
-                }
-            )
-            response.raise_for_status()
-            wm_data = response.json()
-
-            change_usd_wm = '{:,.2f}'.format(float(wm_data["change"]))
-            change_percent_wm = f"{round(float(wm_data['percent_change']), 2)}"
-            # If code is run 00:00UTC Monday, want last weekly open instead of last Monday's close
-            if interval == "1week":
-                prev_weekly_close = wm_data["open"]
-                change_usd_wm_float = price_float - float(prev_weekly_close)
-                change_usd_wm = '{:,.2f}'.format(change_usd_wm_float)
-                change_percent_wm = f"{round((change_usd_wm_float/price_float)*100, 2)}"
-
-            index_dict = {
-                "ticker": ticker,
-                "price": price,
-                "24h_change_usd": change_usd_24h,
-                "24h_change_percent": change_percent_24h,
-                "wm_change_usd": change_usd_wm,
-                "wm_change_percent": change_percent_wm,
+        print(f"Getting data for {stock_index}...")
+        async with httpx.AsyncClient() as client:
+            query = {
+                "columns": "name,close,change_abs,change,change_abs|1W,change|1W,change_abs|1M,change|1M",
+                "symbol": stock_index
             }
-            self.index_data[ticker] = index_dict
-            print(f"Updated {index} data.")
+            response = await client.get(
+                url=self._rapidapi_TV_endpoint,
+                params=query,
+                headers=self._rapidapi_headers
+            )
+        response.raise_for_status()
+        data = response.json()
+
+        ticker = data["data"][0]["d"][0]
+        close_value_float = float(data["data"][0]["d"][1])
+        close_value = '{:,.2f}'.format(close_value_float)
+        change_value_24h = '{:,.2f}'.format(float(data["data"][0]["d"][2]))
+        change_percent_24h = f"{round(data["data"][0]["d"][3], 2)}"
+        change_value_weekly = '{:,.2f}'.format(float(data["data"][0]["d"][4]))
+        change_percent_weekly = f"{round(data["data"][0]["d"][5], 2)}"
+        change_value_monthly = '{:,.2f}'.format(float(data["data"][0]["d"][6]))
+        change_percent_monthly = f"{round(data["data"][0]["d"][7], 2)}"
+
+        index_dict = {
+            "ticker": ticker,
+            "value": close_value,
+            "24h_change_value": change_value_24h,
+            "24h_change_percent": change_percent_24h,
+            "weekly_change_value": change_value_weekly,
+            "weekly_change_percent": change_percent_weekly,
+            "monthly_change_value": change_value_monthly,
+            "monthly_change_percent": change_percent_monthly
+        }
+
+        self.index_data[ticker] = index_dict
+        print(f"Updated {stock_index} data")
