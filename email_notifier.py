@@ -31,17 +31,21 @@ class EmailNotifier:
 
     async def get_emails_data(self):
         """API request to get all stored user data"""
-        print("Getting user data from Sheety API...")
-        async with httpx.AsyncClient() as client:
-            users_response = await client.get(
-                url=self._sheety_endpoint,
-                headers=self._sheety_header
-            )
-        users_response.raise_for_status()
-        data = users_response.json()["users"]
 
-        print("Storing user preferences")
-        self.users_data = UserData(data=data)
+        try:
+            print("Getting user data from Sheety API...")
+            async with httpx.AsyncClient() as client:
+                users_response = await client.get(
+                    url=self._sheety_endpoint,
+                    headers=self._sheety_header
+                )
+            users_response.raise_for_status()
+            data = users_response.json()["users"]
+        except Exception as e:
+            print(f"Failed to retrieve user preferences from Sheety API", e)
+        else:
+            print("Storing user preferences")
+            self.users_data = UserData(data=data)
 
     async def send_emails(self, user_email, subject, html_text):
         """Emails requested data to users via MIME multipart and SMTP and checks for successful delivery"""

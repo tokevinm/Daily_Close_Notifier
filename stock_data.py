@@ -49,30 +49,33 @@ class StockManager:
         """Gets stock index data from "Trading View" on RapidAPI and formats into a nested dictionary.
         Also adds commas/punctuation and rounds to two decimal places."""
 
-        print(f"Getting data for {stock_index}...")
-        async with httpx.AsyncClient() as client:
-            query = {
-                "columns": "name,close,change_abs,change,change_abs|1W,change|1W,change_abs|1M,change|1M",
-                "symbol": stock_index
-            }
-            response = await client.get(
-                url=self._rapidAPI_TV_endpoint,
-                params=query,
-                headers=self._rapidAPI_headers
+        try:
+            print(f"Getting data for {stock_index}...")
+            async with httpx.AsyncClient() as client:
+                query = {
+                    "columns": "name,close,change_abs,change,change_abs|1W,change|1W,change_abs|1M,change|1M",
+                    "symbol": stock_index
+                }
+                response = await client.get(
+                    url=self._rapidAPI_TV_endpoint,
+                    params=query,
+                    headers=self._rapidAPI_headers
+                )
+            response.raise_for_status()
+            data = response.json()
+        except Exception as e:
+            print(f"Failed to get data for {stock_index}", e)
+        else:
+            ticker = data['data'][0]['d'][0]
+
+            self.index_data[ticker] = StockDict(
+                ticker=ticker,
+                close_value=data['data'][0]['d'][1],
+                change_value_24h=data['data'][0]['d'][2],
+                change_percent_24h=data['data'][0]['d'][3],
+                change_value_weekly=data['data'][0]['d'][4],
+                change_percent_weekly=data['data'][0]['d'][5],
+                change_value_monthly=data['data'][0]['d'][6],
+                change_percent_monthly=data['data'][0]['d'][7],
             )
-        response.raise_for_status()
-        data = response.json()
-
-        ticker = data['data'][0]['d'][0]
-
-        self.index_data[ticker] = StockDict(
-            ticker=ticker,
-            close_value=data['data'][0]['d'][1],
-            change_value_24h=data['data'][0]['d'][2],
-            change_percent_24h=data['data'][0]['d'][3],
-            change_value_weekly=data['data'][0]['d'][4],
-            change_percent_weekly=data['data'][0]['d'][5],
-            change_value_monthly=data['data'][0]['d'][6],
-            change_percent_monthly=data['data'][0]['d'][7],
-        )
-        print(f"Updated {stock_index} data")
+            print(f"Updated {stock_index} data")

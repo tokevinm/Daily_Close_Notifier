@@ -88,43 +88,51 @@ class CryptoManager:
 
         # Create empty dictionary entry to ensure emails are the same order/format for every notification
         self.crypto_data[asset] = None
-        print(f"Getting data for {asset.title()}...")
-        async with httpx.AsyncClient() as client:
-            asset_response = await client.get(
-                url=f"{self._cg_endpoint}/coins/{asset}",
-                headers=self._cg_header,
-                params={"id": asset}
-            )
-        asset_response.raise_for_status()
-        data = asset_response.json()
-        # Most data is returned as int/float (depending on how high or low price is), except ticker/"symbol"
 
-        self.crypto_data[asset] = CryptoDict(
-            ticker=data["symbol"],
-            ticker_upper=data["symbol"].upper(),
-            price=data["market_data"]["current_price"]["usd"],
-            mcap=data["market_data"]["market_cap"]["usd"],
-            total_volume=data["market_data"]["total_volume"]["usd"],
-            change_usd_24h=data["market_data"]["price_change_24h_in_currency"]["usd"],
-            change_percent_24h=data['market_data']['price_change_percentage_24h'],
-            change_percent_7d=data['market_data']['price_change_percentage_7d'],
-            change_percent_30d=data['market_data']['price_change_percentage_30d']
-        )
-        print(f"Updated {asset.title()} data")
+        try:
+            print(f"Getting data for {asset.title()}...")
+            async with httpx.AsyncClient() as client:
+                asset_response = await client.get(
+                    url=f"{self._cg_endpoint}/coins/{asset}",
+                    headers=self._cg_header,
+                    params={"id": asset}
+                )
+            asset_response.raise_for_status()
+            data = asset_response.json()
+            # Most data is returned as int/float (depending on how high or low price is), except ticker/"symbol"
+        except Exception as e:
+            print(f"Failed to get data for {asset.title()}", e)
+        else:
+            self.crypto_data[asset] = CryptoDict(
+                ticker=data["symbol"],
+                ticker_upper=data["symbol"].upper(),
+                price=data["market_data"]["current_price"]["usd"],
+                mcap=data["market_data"]["market_cap"]["usd"],
+                total_volume=data["market_data"]["total_volume"]["usd"],
+                change_usd_24h=data["market_data"]["price_change_24h_in_currency"]["usd"],
+                change_percent_24h=data['market_data']['price_change_percentage_24h'],
+                change_percent_7d=data['market_data']['price_change_percentage_7d'],
+                change_percent_30d=data['market_data']['price_change_percentage_30d']
+            )
+            print(f"Updated {asset.title()} data")
 
     async def get_global_crypto_data(self):
         """Coingecko API request to get data related to entire crypto market"""
 
-        print("Getting global crypto market data...")
-        async with httpx.AsyncClient() as client:
-            global_response = await client.get(
-                url=f"{self._cg_endpoint}/global",
-                headers=self._cg_header
-            )
-        global_response.raise_for_status()
-        self.global_crypto_data = global_response.json()
-        if self.global_crypto_data["data"]["market_cap_percentage"]:
-            self.crypto_total_mcap_top10_percents = self.global_crypto_data["data"]["market_cap_percentage"]
-        if self.global_crypto_data["data"]["total_market_cap"]["usd"]:
-            self.crypto_total_mcap = f"${self.global_crypto_data['data']['total_market_cap']['usd']:,.2f}"
-        print("Updated global crypto market data")
+        try:
+            print("Getting global crypto market data...")
+            async with httpx.AsyncClient() as client:
+                global_response = await client.get(
+                    url=f"{self._cg_endpoint}/global",
+                    headers=self._cg_header
+                )
+            global_response.raise_for_status()
+            self.global_crypto_data = global_response.json()
+        except Exception as e:
+            print(f"Failed to get global crypto data", e)
+        else:
+            if self.global_crypto_data["data"]["market_cap_percentage"]:
+                self.crypto_total_mcap_top10_percents = self.global_crypto_data["data"]["market_cap_percentage"]
+            if self.global_crypto_data["data"]["total_market_cap"]["usd"]:
+                self.crypto_total_mcap = f"${self.global_crypto_data['data']['total_market_cap']['usd']:,.2f}"
+            print("Retrieved global crypto market data")
