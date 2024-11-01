@@ -1,10 +1,6 @@
-import asyncio
-import os
 import httpx
 from pydantic import BaseModel, field_validator
-from dotenv import load_dotenv
-
-load_dotenv()
+from pydantic_settings import BaseSettings, SettingsConfigDict
 
 
 class CryptoDict(BaseModel):
@@ -34,6 +30,13 @@ class CryptoDict(BaseModel):
     @field_validator("change_percent_24h", "change_percent_7d", "change_percent_30d")
     def format_percentages(cls, percent: float | int) -> str:
         return f"{round(percent, 2)}"
+
+
+class Settings(BaseSettings):
+    model_config = SettingsConfigDict(env_file='.env', env_file_encoding='utf-8', extra='allow')
+
+
+settings = Settings()
 
 
 class CryptoManager:
@@ -74,9 +77,9 @@ class CryptoManager:
         self.crypto_total_mcap_top10_percents = None
         # crypto_total_mcap_top10_percents is a dictionary of top-10 cryptos and their percentages of total mcap
         self.crypto_total_mcap = None
-        self._cg_endpoint = "https://api.coingecko.com/api/v3"
+        self._cg_endpoint = settings.coingecko_endpoint
         self._cg_header = {
-            "x-cg-demo-api-key": os.environ["COINGECKO_API_KEY"],
+            "x-cg-demo-api-key": settings.coingecko_api_key,
         }
 
     async def get_crypto_data(self, asset):
@@ -125,10 +128,3 @@ class CryptoManager:
         if self.global_crypto_data["data"]["total_market_cap"]["usd"]:
             self.crypto_total_mcap = f"${self.global_crypto_data['data']['total_market_cap']['usd']:,.2f}"
         print("Updated global crypto market data")
-
-
-if __name__ == "__main__":
-    crypto_man = CryptoManager()
-    asyncio.run(crypto_man.get_crypto_data("mother-iggy"))
-    print(crypto_man.crypto_data)
-    print(crypto_man.crypto_data['mother-iggy'].price)

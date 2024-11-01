@@ -105,7 +105,7 @@ async def main():
 
     users_data = email_man.users_data
     async_emails = []
-    for user in users_data:
+    for user in users_data.data:
         if "unsubscribe?" in user:
             continue
         user_email = user["emailAddress"]

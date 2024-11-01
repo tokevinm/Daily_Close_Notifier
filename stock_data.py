@@ -1,10 +1,6 @@
-import asyncio
-import os
 import httpx
 from pydantic import BaseModel, field_validator
-from dotenv import load_dotenv
-
-load_dotenv()
+from pydantic_settings import BaseSettings, SettingsConfigDict
 
 
 class StockDict(BaseModel):
@@ -26,6 +22,13 @@ class StockDict(BaseModel):
         return f"{round(percent, 2)}"
 
 
+class Settings(BaseSettings):
+    model_config = SettingsConfigDict(env_file='.env', env_file_encoding='utf-8', extra='allow')
+
+
+settings = Settings()
+
+
 class StockManager:
     """Requests, manages, and formats data received from the RapidAPI "Trading View" API"""
 
@@ -36,9 +39,9 @@ class StockManager:
             "NDX": None,
             "DJI": None
         }
-        self._rapidapi_TV_endpoint = "https://trading-view.p.rapidapi.com/stocks/get-financials"
-        self._rapidapi_headers = {
-            "x-rapidapi-key": os.environ["RAPIDAPI_KEY"],
+        self._rapidAPI_TV_endpoint = settings.rapidapi_endpoint
+        self._rapidAPI_headers = {
+            "x-rapidapi-key": settings.rapidapi_key,
             "x-rapidapi-host": "trading-view.p.rapidapi.com"
         }
 
@@ -53,9 +56,9 @@ class StockManager:
                 "symbol": stock_index
             }
             response = await client.get(
-                url=self._rapidapi_TV_endpoint,
+                url=self._rapidAPI_TV_endpoint,
                 params=query,
-                headers=self._rapidapi_headers
+                headers=self._rapidAPI_headers
             )
         response.raise_for_status()
         data = response.json()
@@ -73,10 +76,3 @@ class StockManager:
             change_percent_monthly=data['data'][0]['d'][7],
         )
         print(f"Updated {stock_index} data")
-
-
-if __name__ == "__main__":
-    crypto_man = StockManager()
-    asyncio.run(crypto_man.get_index_data("SP:SPX"))
-    print(crypto_man.index_data)
-    print(crypto_man.index_data['SPX'].close_value)
