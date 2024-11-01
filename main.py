@@ -8,7 +8,7 @@ MONTHLY = "MONTHLY"
 WEEKLY = "WEEKLY"
 
 crypto_man = CryptoManager()
-crypto_data = crypto_man.cg_crypto_data
+crypto_data = crypto_man.crypto_data
 
 stock_man = StockManager()
 stock_data = stock_man.index_data
@@ -78,16 +78,13 @@ day_of_week = datetime.now().strftime("%w")
 if day_of_month == "01":
     close_significance = MONTHLY
     interval = "30D"
-    interval_percent = "30d_change_percent"
 # Check if day_of_week is Monday ("1"), as global crypto markets candle close at 00:00 UTC Sunday ("0").
 elif day_of_week == "1":
     close_significance = WEEKLY
     interval = "7D"
-    interval_percent = "7d_change_percent"
 else:
     close_significance = "Daily"  # Default
     interval = "1D"
-    interval_percent = "24h_change_percent"
 
 stock_market_open = True
 if day_of_week in ["0", "6"]:
@@ -99,7 +96,7 @@ async def main():
     async with asyncio.TaskGroup() as tg:
         tg.create_task(email_man.get_emails_data())
         tg.create_task(crypto_man.get_global_crypto_data())
-        for asset in crypto_man.cg_assets_list:
+        for asset in crypto_man.crypto_list:
             tg.create_task(crypto_man.get_crypto_data(asset))
         if stock_market_open:
             for ind in stock_man.index_list:
@@ -115,18 +112,22 @@ async def main():
         user_options = user.get("anyExtraDataYou'dLikeInYourReport?", None)
         print(f"Compiling daily report for {user_email}...")
 
-        subject = f"BTC {close_significance} Close: {crypto_data['bitcoin']['price']}"
+        subject = f"BTC {close_significance} Close: {crypto_data['bitcoin'].price}"
 
         message_body = "<p>"
         message_body += default_msg(
-            ticker=crypto_data["bitcoin"]["ticker_upper"],
-            price=crypto_data["bitcoin"]["price"],
-            percent_change=crypto_data["bitcoin"]["24h_change_percent"]
+            ticker=crypto_data["bitcoin"].ticker_upper,
+            price=crypto_data["bitcoin"].price,
+            percent_change=crypto_data["bitcoin"].change_percent_24h
         )
         if close_significance == MONTHLY or close_significance == WEEKLY:
-            btc_wm_up_down = up_down_icon(crypto_data["bitcoin"][interval_percent])
-            message_body += (f"{close_significance.title()} Change ({interval}) "
-                             f"{btc_wm_up_down} {crypto_data['bitcoin'][interval_percent]}%")
+            if close_significance == MONTHLY:
+                btc_wm_percent = crypto_data['bitcoin'].change_percent_30d
+            else:
+                btc_wm_percent = crypto_data['bitcoin'].change_percent_7d
+            btc_wm_up_down = up_down_icon(btc_wm_percent)
+            message_body += (f"{close_significance.title()} Change "
+                             f"{btc_wm_up_down} {btc_wm_percent}%")
         message_body += "</p>"
 
         if user_options:
@@ -135,14 +136,18 @@ async def main():
             for choice in user_choices:
                 crypto_dict = crypto_data[choice.lower()]
                 message_body += default_msg(
-                    ticker=crypto_dict["ticker_upper"],
-                    price=crypto_dict["price"],
-                    percent_change=crypto_dict["24h_change_percent"]
+                    ticker=crypto_dict.ticker_upper,
+                    price=crypto_dict.price,
+                    percent_change=crypto_dict.change_percent_24h
                 )
                 if close_significance == MONTHLY or close_significance == WEEKLY:
+                    if close_significance == MONTHLY:
+                        crypto_wm_percent = crypto_dict.change_percent_30d
+                    else:
+                        crypto_wm_percent = crypto_dict.change_percent_7d
                     message_body += htf_msg(
                         timeframe=interval,
-                        percent_change=crypto_dict[interval_percent]
+                        percent_change=crypto_wm_percent
                     )
             message_body += "</p>"
 
@@ -151,19 +156,23 @@ async def main():
             for stock in stock_data:
                 stock_dict = stock_data[stock]
                 message_body += default_msg(
-                    ticker=stock_dict["ticker"],
-                    price=stock_dict["value"],
-                    percent_change=stock_dict["24h_change_percent"]
+                    ticker=stock_dict.ticker,
+                    price=stock_dict.close_value,
+                    percent_change=stock_dict.change_percent_24h
                 )
                 if close_significance == MONTHLY or close_significance == WEEKLY:
+                    if close_significance == MONTHLY:
+                        stock_wm_percent = stock_dict.change_percent_monthly
+                    else:
+                        stock_wm_percent = stock_dict.change_percent_weekly
                     message_body += htf_msg(
                         timeframe=interval,
-                        percent_change=stock_dict["wm_change_percent"]
+                        percent_change=stock_wm_percent
                     )
             message_body += "</p>"
 
         message_body += (f"<p>BTC Market Cap:<br>"
-                         f"{crypto_data['bitcoin']['mcap']}<br>"
+                         f"{crypto_data['bitcoin'].mcap}<br>"
                          f"Total Cryptocurrency Market Cap:<br>"
                          f"{crypto_man.crypto_total_mcap}</p>")
 
