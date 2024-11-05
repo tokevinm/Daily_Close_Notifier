@@ -1,35 +1,29 @@
 import httpx
-from pydantic import BaseModel, field_validator
+from pydantic import BaseModel, field_validator, model_validator
 from pydantic_settings import BaseSettings, SettingsConfigDict
 
 
 class CryptoDict(BaseModel):
+    name: str
     ticker: str
-    ticker_upper: str
     price: float | int
-    mcap: float | int
-    total_volume: float | int
-    change_usd_24h: float | int
-    change_percent_24h: float | int
-    change_percent_7d: float | int
-    change_percent_30d: float | int
+    mcap: int
+    volume: int
+    change_usd_24h: float
+    change_percent_24h: float
+    change_percent_7d: float
+    change_percent_30d: float
 
-    @field_validator("price")
-    def format_price(cls, price: float | int) -> str:
-        if price >= 1:
-            return f"${price:,.2f}"
-        elif price >= 0.01:
-            return f"${price:,.4f}"
-        else:
-            return f"${price:,.8f}"
-
-    @field_validator("mcap", "total_volume", "change_usd_24h")
-    def format_to_dollars(cls, price: float | int) -> str:
-        return f"${price:,.2f}"
-
-    @field_validator("change_percent_24h", "change_percent_7d", "change_percent_30d")
-    def format_percentages(cls, percent: float | int) -> str:
-        return f"{round(percent, 2)}"
+    @model_validator(mode="before")
+    def validate_data(cls, values):
+        for field in ["price", "mcap", "volume", "change_usd_24h",
+                      "change_percent_24h", "change_percent_7d", "change_percent_30d"]:
+            if values.get(field) is None:
+                raise KeyError(f"{field} is missing from the API response.")
+        for field in ["price", "mcap", "volume"]:
+            if values[field] < 0:
+                raise ValueError(f"{field} cannot be negative.")
+        return values
 
 
 class Settings(BaseSettings):
@@ -82,7 +76,7 @@ class CryptoManager:
             "x-cg-demo-api-key": settings.coingecko_api_key,
         }
 
-    async def get_crypto_data(self, asset):
+    async def get_crypto_data(self, asset: str) -> None:
         """Gets user requested data from CoinGecko API and formats into a nested dictionary.
         Also adds commas/punctuation and rounds to two decimal places."""
 
@@ -104,11 +98,11 @@ class CryptoManager:
             print(f"Failed to get data for {asset.title()}", e)
         else:
             self.crypto_data[asset] = CryptoDict(
-                ticker=data["symbol"],
-                ticker_upper=data["symbol"].upper(),
+                name=data["name"],
+                ticker=data["symbol"].upper(),
                 price=data["market_data"]["current_price"]["usd"],
                 mcap=data["market_data"]["market_cap"]["usd"],
-                total_volume=data["market_data"]["total_volume"]["usd"],
+                volume=data["market_data"]["total_volume"]["usd"],
                 change_usd_24h=data["market_data"]["price_change_24h_in_currency"]["usd"],
                 change_percent_24h=data['market_data']['price_change_percentage_24h'],
                 change_percent_7d=data['market_data']['price_change_percentage_7d'],
@@ -116,7 +110,7 @@ class CryptoManager:
             )
             print(f"Updated {asset.title()} data")
 
-    async def get_global_crypto_data(self):
+    async def get_global_crypto_data(self) -> None:
         """Coingecko API request to get data related to entire crypto market"""
 
         try:
@@ -134,5 +128,5 @@ class CryptoManager:
             if self.global_crypto_data["data"]["market_cap_percentage"]:
                 self.crypto_total_mcap_top10_percents = self.global_crypto_data["data"]["market_cap_percentage"]
             if self.global_crypto_data["data"]["total_market_cap"]["usd"]:
-                self.crypto_total_mcap = f"${self.global_crypto_data['data']['total_market_cap']['usd']:,.2f}"
+                self.crypto_total_mcap = self.global_crypto_data['data']['total_market_cap']['usd']
             print("Retrieved global crypto market data")

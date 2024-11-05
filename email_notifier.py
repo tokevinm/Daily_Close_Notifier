@@ -29,7 +29,7 @@ class EmailNotifier:
         self._sheety_header = {"Authorization": settings.sheety_bearer}
         self.users_data = []
 
-    async def get_emails_data(self):
+    async def get_emails_data(self) -> None:
         """API request to get all stored user data"""
 
         try:
@@ -47,7 +47,7 @@ class EmailNotifier:
             print("Storing user preferences")
             self.users_data = UserData(data=data)
 
-    async def send_emails(self, user_email, subject, html_text):
+    async def send_emails(self, user_email: str, subject: str, html_text: str) -> None:
         """Emails requested data to users via MIME multipart and SMTP and checks for successful delivery"""
 
         print(f"Emailing {user_email}...")

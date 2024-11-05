@@ -1,25 +1,30 @@
 import httpx
-from pydantic import BaseModel, field_validator
+from pydantic import BaseModel, field_validator, model_validator
 from pydantic_settings import BaseSettings, SettingsConfigDict
 
 
 class StockDict(BaseModel):
+    name: str
     ticker: str
-    close_value: float | int
-    change_value_24h: float | int
-    change_percent_24h: float | int
-    change_value_weekly: float | int
-    change_percent_weekly: float | int
-    change_value_monthly: float | int
-    change_percent_monthly: float | int
+    close: float
+    mcap: float | None  # Indices return "None" though Trading View
+    volume: int
+    change_value_24h: float
+    change_percent_24h: float
+    change_value_weekly: float
+    change_percent_weekly: float
+    change_value_monthly: float
+    change_percent_monthly: float
 
-    @field_validator("close_value", "change_value_24h", "change_value_weekly", "change_value_monthly")
-    def format_dollars(cls, price: float | int) -> str:
-        return f"${price:,.2f}"
-
-    @field_validator("change_percent_24h", "change_percent_weekly", "change_percent_monthly")
-    def format_percentages(cls, percent: float | int) -> str:
-        return f"{round(percent, 2)}"
+    @model_validator(mode="before")
+    def validate_data(cls, values):
+        for field in ["close", "change_value_24h", "change_percent_24h", "change_value_weekly",
+                      "change_percent_weekly", "change_value_monthly", "change_percent_monthly"]:
+            if values.get(field) is None:
+                raise KeyError(f"'{field}' is missing from the API response.")
+        if values["close"] < 0:
+            raise ValueError(f"{values['ticker']} candle close value cannot be negative.")
+        return values
 
 
 class Settings(BaseSettings):
@@ -45,7 +50,7 @@ class StockManager:
             "x-rapidapi-host": "trading-view.p.rapidapi.com"
         }
 
-    async def get_index_data(self, stock_index):
+    async def get_index_data(self, stock_index: str) -> None:
         """Gets stock index data from "Trading View" on RapidAPI and formats into a nested dictionary.
         Also adds commas/punctuation and rounds to two decimal places."""
 
@@ -53,7 +58,8 @@ class StockManager:
             print(f"Getting data for {stock_index}...")
             async with httpx.AsyncClient() as client:
                 query = {
-                    "columns": "name,close,change_abs,change,change_abs|1W,change|1W,change_abs|1M,change|1M",
+                    "columns": "name,close,market_cap_basic,volume,"
+                               "change_abs,change,change_abs|1W,change|1W,change_abs|1M,change|1M,",
                     "symbol": stock_index
                 }
                 response = await client.get(
@@ -63,19 +69,23 @@ class StockManager:
                 )
             response.raise_for_status()
             data = response.json()
+            print(data)
         except Exception as e:
             print(f"Failed to get data for {stock_index}", e)
         else:
             ticker = data['data'][0]['d'][0]
 
             self.index_data[ticker] = StockDict(
+                name=ticker,
                 ticker=ticker,
-                close_value=data['data'][0]['d'][1],
-                change_value_24h=data['data'][0]['d'][2],
-                change_percent_24h=data['data'][0]['d'][3],
-                change_value_weekly=data['data'][0]['d'][4],
-                change_percent_weekly=data['data'][0]['d'][5],
-                change_value_monthly=data['data'][0]['d'][6],
-                change_percent_monthly=data['data'][0]['d'][7],
+                close=data['data'][0]['d'][1],
+                mcap=data['data'][0]['d'][2],
+                volume=data['data'][0]['d'][3],
+                change_value_24h=data['data'][0]['d'][4],
+                change_percent_24h=data['data'][0]['d'][5],
+                change_value_weekly=data['data'][0]['d'][6],
+                change_percent_weekly=data['data'][0]['d'][7],
+                change_value_monthly=data['data'][0]['d'][8],
+                change_percent_monthly=data['data'][0]['d'][9],
             )
             print(f"Updated {stock_index} data")
