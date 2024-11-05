@@ -3,19 +3,13 @@ import httpx
 from email.mime.multipart import MIMEMultipart
 from email.mime.text import MIMEText
 from pydantic import BaseModel
-from pydantic_settings import BaseSettings, SettingsConfigDict
+from config import Settings
+
+settings = Settings()
 
 
 class UserData(BaseModel):
     data: list[dict]
-
-
-class Settings(BaseSettings):
-    model_config = SettingsConfigDict(env_file='.env', env_file_encoding='utf-8', extra='allow')
-    smtp_port: int
-
-
-settings = Settings()
 
 
 class EmailNotifier:

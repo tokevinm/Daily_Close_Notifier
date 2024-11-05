@@ -1,6 +1,8 @@
 import httpx
 from pydantic import BaseModel, field_validator, model_validator
-from pydantic_settings import BaseSettings, SettingsConfigDict
+from config import Settings
+
+settings = Settings()
 
 
 class CryptoDict(BaseModel):
@@ -9,11 +11,13 @@ class CryptoDict(BaseModel):
     price: float | int
     mcap: int
     volume: int
+    # With enough data in db, will be able to delete following variables and replace w/ functions to calculate
     change_usd_24h: float
     change_percent_24h: float
     change_percent_7d: float
     change_percent_30d: float
 
+    @classmethod
     @model_validator(mode="before")
     def validate_data(cls, values):
         for field in ["price", "mcap", "volume", "change_usd_24h",
@@ -24,13 +28,6 @@ class CryptoDict(BaseModel):
             if values[field] < 0:
                 raise ValueError(f"{field} cannot be negative.")
         return values
-
-
-class Settings(BaseSettings):
-    model_config = SettingsConfigDict(env_file='.env', env_file_encoding='utf-8', extra='allow')
-
-
-settings = Settings()
 
 
 class CryptoManager:
@@ -45,16 +42,16 @@ class CryptoManager:
             "binancecoin",
             "ripple",
             "the-open-network",
-            "cardano",
-            "tron",
-            "avalanche-2",
-            "shiba-inu",
-            "chainlink",
-            "polkadot",
-            "uniswap",
-            "litecoin",
-            "near",
-            "monero",
+            # "cardano",
+            # "tron",
+            # "avalanche-2",
+            # "shiba-inu",
+            # "chainlink",
+            # "polkadot",
+            # "uniswap",
+            # "litecoin",
+            # "near",
+            # "monero",
             "pepe",
             "aptos",
             "sui",
@@ -80,8 +77,8 @@ class CryptoManager:
         """Gets user requested data from CoinGecko API and formats into a nested dictionary.
         Also adds commas/punctuation and rounds to two decimal places."""
 
-        # Create empty dictionary entry to ensure emails are the same order/format for every notification
-        self.crypto_data[asset] = None
+        # # Create empty dictionary entry to ensure emails are the same order/format for every notification
+        # self.crypto_data[asset] = None
 
         try:
             print(f"Getting data for {asset.title()}...")

@@ -1,6 +1,8 @@
 import httpx
 from pydantic import BaseModel, field_validator, model_validator
-from pydantic_settings import BaseSettings, SettingsConfigDict
+from config import Settings
+
+settings = Settings()
 
 
 class StockDict(BaseModel):
@@ -9,6 +11,7 @@ class StockDict(BaseModel):
     close: float
     mcap: float | None  # Indices return "None" though Trading View
     volume: int
+    # With enough data in db, will be able to delete following variables and replace w/ functions to calculate
     change_value_24h: float
     change_percent_24h: float
     change_value_weekly: float
@@ -16,6 +19,7 @@ class StockDict(BaseModel):
     change_value_monthly: float
     change_percent_monthly: float
 
+    @classmethod
     @model_validator(mode="before")
     def validate_data(cls, values):
         for field in ["close", "change_value_24h", "change_percent_24h", "change_value_weekly",
@@ -25,13 +29,6 @@ class StockDict(BaseModel):
         if values["close"] < 0:
             raise ValueError(f"{values['ticker']} candle close value cannot be negative.")
         return values
-
-
-class Settings(BaseSettings):
-    model_config = SettingsConfigDict(env_file='.env', env_file_encoding='utf-8', extra='allow')
-
-
-settings = Settings()
 
 
 class StockManager:
