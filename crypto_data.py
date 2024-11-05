@@ -1,14 +1,49 @@
-import os
-import requests
-from dotenv import load_dotenv
-load_dotenv()
+import httpx
+from pydantic import BaseModel, field_validator
+from pydantic_settings import BaseSettings, SettingsConfigDict
+
+
+class CryptoDict(BaseModel):
+    ticker: str
+    ticker_upper: str
+    price: float | int
+    mcap: float | int
+    total_volume: float | int
+    change_usd_24h: float | int
+    change_percent_24h: float | int
+    change_percent_7d: float | int
+    change_percent_30d: float | int
+
+    @field_validator("price")
+    def format_price(cls, price: float | int) -> str:
+        if price >= 1:
+            return f"${price:,.2f}"
+        elif price >= 0.01:
+            return f"${price:,.4f}"
+        else:
+            return f"${price:,.8f}"
+
+    @field_validator("mcap", "total_volume", "change_usd_24h")
+    def format_to_dollars(cls, price: float | int) -> str:
+        return f"${price:,.2f}"
+
+    @field_validator("change_percent_24h", "change_percent_7d", "change_percent_30d")
+    def format_percentages(cls, percent: float | int) -> str:
+        return f"{round(percent, 2)}"
+
+
+class Settings(BaseSettings):
+    model_config = SettingsConfigDict(env_file='.env', env_file_encoding='utf-8', extra='allow')
+
+
+settings = Settings()
 
 
 class CryptoManager:
     """Requests, manages, and formats data received from the CoinGecko API"""
+
     def __init__(self):
-        self.cg_endpoint = "https://api.coingecko.com/api/v3"
-        self.cg_assets_list = [
+        self.crypto_list = [
             "bitcoin",
             "ethereum",
             "solana",
@@ -36,68 +71,68 @@ class CryptoManager:
             "ondo-finance",
             "mother-iggy"
         ]
-        self.cg_crypto_data = {}
-        self.cg_global_crypto_data = {}
+        self.crypto_data = {}
+        self.global_crypto_data = {}
         # TODO: Consider making use of crypto_total_mcap_top10_percents
         self.crypto_total_mcap_top10_percents = None
         # crypto_total_mcap_top10_percents is a dictionary of top-10 cryptos and their percentages of total mcap
         self.crypto_total_mcap = None
-        self.cg_header = {
-            "x-cg-demo-api-key": os.environ["CG_API_KEY"],
+        self._cg_endpoint = settings.coingecko_endpoint
+        self._cg_header = {
+            "x-cg-demo-api-key": settings.coingecko_api_key,
         }
 
-    def get_crypto_data(self):
+    async def get_crypto_data(self, asset):
         """Gets user requested data from CoinGecko API and formats into a nested dictionary.
         Also adds commas/punctuation and rounds to two decimal places."""
-        for asset in self.cg_assets_list:
-            asset_response = requests.get(
-                url=f"{self.cg_endpoint}/coins/{asset}",
-                headers=self.cg_header,
-                params={"id": asset}
-            )
+
+        # Create empty dictionary entry to ensure emails are the same order/format for every notification
+        self.crypto_data[asset] = None
+
+        try:
+            print(f"Getting data for {asset.title()}...")
+            async with httpx.AsyncClient() as client:
+                asset_response = await client.get(
+                    url=f"{self._cg_endpoint}/coins/{asset}",
+                    headers=self._cg_header,
+                    params={"id": asset}
+                )
             asset_response.raise_for_status()
             data = asset_response.json()
-            print(f"Getting data for {asset.title()}...")
+            # Most data is returned as int/float (depending on how high or low price is), except ticker/"symbol"
+        except Exception as e:
+            print(f"Failed to get data for {asset.title()}", e)
+        else:
+            self.crypto_data[asset] = CryptoDict(
+                ticker=data["symbol"],
+                ticker_upper=data["symbol"].upper(),
+                price=data["market_data"]["current_price"]["usd"],
+                mcap=data["market_data"]["market_cap"]["usd"],
+                total_volume=data["market_data"]["total_volume"]["usd"],
+                change_usd_24h=data["market_data"]["price_change_24h_in_currency"]["usd"],
+                change_percent_24h=data['market_data']['price_change_percentage_24h'],
+                change_percent_7d=data['market_data']['price_change_percentage_7d'],
+                change_percent_30d=data['market_data']['price_change_percentage_30d']
+            )
+            print(f"Updated {asset.title()} data")
 
-            ticker = data["symbol"]
-            ticker_upper = ticker.upper()
-            if float(data["market_data"]["current_price"]["usd"]) >= 1:
-                price = '${:,.2f}'.format(data["market_data"]["current_price"]["usd"])
-            elif float(data["market_data"]["current_price"]["usd"]) >= 0.01:
-                price = '${:,.4f}'.format(data["market_data"]["current_price"]["usd"])
-            else:
-                price = '${:,.8f}'.format(data["market_data"]["current_price"]["usd"])
-            mcap = '${:,.2f}'.format(data["market_data"]["market_cap"]["usd"])
-            total_volume = '${:,.2f}'.format(data["market_data"]["total_volume"]["usd"])
-            change_usd_24h = '{:,.2f}'.format(data["market_data"]["price_change_24h_in_currency"]["usd"])
-            change_percent_24h = f"{round(data['market_data']['price_change_percentage_24h'], 2)}"
-            change_percent_7d = f"{round(data['market_data']['price_change_percentage_7d'], 2)}"
-            change_percent_30d = f"{round(data['market_data']['price_change_percentage_30d'], 2)}"
+    async def get_global_crypto_data(self):
+        """Coingecko API request to get data related to entire crypto market"""
 
-            asset_dict = {
-                "ticker": ticker,
-                "ticker_upper": ticker_upper,
-                "price": price,
-                "mcap": mcap,
-                "total_volume": total_volume,
-                "24h_change_usd": change_usd_24h,
-                "24h_change_percent": change_percent_24h,
-                "7d_change_percent": change_percent_7d,
-                "30d_change_percent": change_percent_30d,
-            }
-            self.cg_crypto_data[asset] = asset_dict
-            print(f"Updated {asset.title()} data.")
-
-    def get_global_crypto_data(self):
-        """API request to get data related to entire crypto market"""
-        global_response = requests.get(
-            url=f"{self.cg_endpoint}/global",
-            headers=self.cg_header
-        )
-        global_response.raise_for_status()
-        self.cg_global_crypto_data = global_response.json()
-        if self.cg_global_crypto_data["data"]["market_cap_percentage"]:
-            self.crypto_total_mcap_top10_percents = self.cg_global_crypto_data["data"]["market_cap_percentage"]
-        if self.cg_global_crypto_data["data"]["total_market_cap"]["usd"]:
-            self.crypto_total_mcap = '${:,.2f}'.format(self.cg_global_crypto_data["data"]["total_market_cap"]["usd"])
-
+        try:
+            print("Getting global crypto market data...")
+            async with httpx.AsyncClient() as client:
+                global_response = await client.get(
+                    url=f"{self._cg_endpoint}/global",
+                    headers=self._cg_header
+                )
+            global_response.raise_for_status()
+            self.global_crypto_data = global_response.json()
+        except Exception as e:
+            print(f"Failed to get global crypto data", e)
+        else:
+            if self.global_crypto_data["data"]["market_cap_percentage"]:
+                self.crypto_total_mcap_top10_percents = self.global_crypto_data["data"]["market_cap_percentage"]
+            if self.global_crypto_data["data"]["total_market_cap"]["usd"]:
+                self.crypto_total_mcap = f"${self.global_crypto_data['data']['total_market_cap']['usd']:,.2f}"
+            print("Retrieved global crypto market data")
