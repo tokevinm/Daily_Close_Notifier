@@ -1,6 +1,7 @@
 .env
 __pycache__
 .venv/
+.idea/
 notes.txt
 stock_data_polygon.py
 main310.py

@@ -1,45 +1,22 @@
 import httpx
-from pydantic import BaseModel, field_validator, model_validator
+from validators import StockDict
 from config import Settings
-
 settings = Settings()
-
-
-class StockDict(BaseModel):
-    name: str
-    ticker: str
-    close: float
-    mcap: float | None  # Indices return "None" though Trading View
-    volume: int
-    # With enough data in db, will be able to delete following variables and replace w/ functions to calculate
-    change_value_24h: float
-    change_percent_24h: float
-    change_value_weekly: float
-    change_percent_weekly: float
-    change_value_monthly: float
-    change_percent_monthly: float
-
-    @classmethod
-    @model_validator(mode="before")
-    def validate_data(cls, values):
-        for field in ["close", "change_value_24h", "change_percent_24h", "change_value_weekly",
-                      "change_percent_weekly", "change_value_monthly", "change_percent_monthly"]:
-            if values.get(field) is None:
-                raise KeyError(f"'{field}' is missing from the API response.")
-        if values["close"] < 0:
-            raise ValueError(f"{values['ticker']} candle close value cannot be negative.")
-        return values
 
 
 class StockManager:
     """Requests, manages, and formats data received from the RapidAPI "Trading View" API"""
 
     def __init__(self):
-        self.index_list = ["SP:SPX", "NASDAQ:NDX", "DJ:DJI"]
+        self.index_list = [
+            "SP:SPX",
+            "NASDAQ:NDX",
+            "DJ:DJI",
+        ]
         self.index_data = {
             "SPX": None,
             "NDX": None,
-            "DJI": None
+            "DJI": None,
         }
         self._rapidAPI_TV_endpoint = settings.rapidapi_endpoint
         self._rapidAPI_headers = {
@@ -66,7 +43,6 @@ class StockManager:
                 )
             response.raise_for_status()
             data = response.json()
-            print(data)
         except Exception as e:
             print(f"Failed to get data for {stock_index}", e)
         else:

@@ -1,5 +1,6 @@
-from models import Session, Asset, AssetData
-session = Session()
+from sqlalchemy import select, Date
+from models import Asset, AssetData
+from config import Session
 
 
 def up_down_icon(percent_change: float) -> str:
@@ -73,24 +74,33 @@ def format_percent(percent: float) -> str:
     return f"{round(percent, 2)}%"
 
 
-def save_data_to_postgres(name: str, ticker: str, price: float | int, mcap: float | int, volume: int) -> None:
+async def save_data_to_postgres(
+        name: str, 
+        ticker: str, 
+        price: float | int, 
+        mcap: float | int, 
+        volume: int, 
+        date: Date = None
+        ) -> None:
     """Checks for existence of asset in Postgres database, adds it if nonexistent, and updates associated data"""
-    asset = session.query(Asset).filter_by(asset_name=name).first()
-    new_asset = False
-    if not asset:
-        asset = Asset(
-            asset_name=name,
-            asset_ticker=ticker
-        )
-        new_asset = True
 
-    new_data = AssetData(
-        asset=asset,
-        close_price=price,
-        market_cap=mcap,
-        volume_USD=volume
-    )
-    if new_asset:
-        session.add(asset)
-    session.add(new_data)
-    session.commit()
+    async with Session() as session:
+        asset_result = await session.execute(select(Asset).filter_by(asset_name=name))
+        asset = asset_result.scalars().first()
+        if not asset:
+            asset = Asset(
+                asset_name=name,
+                asset_ticker=ticker
+            )
+            session.add(asset)
+            await session.commit()
+
+        new_data = AssetData(
+            asset=asset,
+            date=date,
+            close_price=price,
+            market_cap=mcap,
+            volume_USD=volume
+        )
+        session.add(new_data)
+        await session.commit()
