@@ -52,7 +52,10 @@ async def sign_up(email: str = Form(...), session: AsyncSession = Depends(async_
     try:
         user = UserSignup(email=email)
     except ValidationError as e:
-        raise HTTPException(status_code=400, detail={"message": f"Submitted email, '{email}' not valid", "error": f"{e}"})
+        raise HTTPException(
+            status_code=400,
+            detail={"message": f"Submitted email, '{email}' not valid", "error": f"{e}"}
+        )
 
     user = User(
         email=user.email
@@ -191,8 +194,8 @@ async def compare_date_data(ticker: str, date1: str, date2: str):
     later_asset_data = later_asset_data_result.scalars().first()
 
     if not earlier_asset_data and not later_asset_data:
-
-        asset_result = await session.execute(select(Asset).filter_by(asset_ticker=ticker))
+        async with async_session() as session:
+            asset_result = await session.execute(select(Asset).filter_by(asset_ticker=ticker))
         asset = asset_result.scalars().first()
 
         if not asset:

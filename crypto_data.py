@@ -1,11 +1,13 @@
 import httpx
+import asyncio
 from datetime import datetime
 from sqlalchemy import select
 
 from models import Asset, AssetData
 from validators import CryptoDict
 from utils import save_data_to_postgres
-from config import Settings, Session
+from config import Settings, Session, async_session
+
 settings = Settings()
 
 
@@ -107,12 +109,11 @@ class CryptoManager:
     async def cg_to_postgres_daily_closes(self, coingecko_id: str, num_days: str):
         """Gets historical daily closing data from Coingecko API and saves to Postgres database"""
 
-        async with Session() as session:
-            try:
-                print("Getting historical crypto market data...")
-
-                async with httpx.AsyncClient() as client:
-                    historical_response = await client.get(
+        print(f"Getting historical crypto market data for {coingecko_id}...")
+        try:
+            async with httpx.AsyncClient() as client:
+                historical_response, asset_response = await asyncio.gather(
+                    client.get(
                         url=f"{self._cg_endpoint}/coins/{coingecko_id}/market_chart",
                         headers=self._cg_header,
                         params={
@@ -121,33 +122,49 @@ class CryptoManager:
                             "interval": "daily",  # Can also do "hourly", "5-minutely"
                             "precision": "2"  # Decimal places for price value
                         }
-                    )
-                historical_response.raise_for_status()
-                historical_data = historical_response.json()
-
-                async with httpx.AsyncClient() as client:
-                    asset_response = await client.get(
+                    ),
+                    client.get(
                         url=f"{self._cg_endpoint}/coins/{coingecko_id}",
                         headers=self._cg_header,
                         params={"id": coingecko_id}
-                    )
-                asset_response.raise_for_status()
-                asset_data = asset_response.json()
+                    ))
 
-            except Exception as e:
-                print(f"Failed to get historical crypto data", e)
+            historical_response.raise_for_status()
+            historical_data = historical_response.json()
+            asset_response.raise_for_status()
+            asset_data = asset_response.json()
 
-            else:
-                print("Data successfully retrieved")
-                all_data = zip(
-                    historical_data["prices"], 
-                    historical_data["market_caps"], 
-                    historical_data["total_volumes"]
+        except Exception as e:
+            print(f"Failed to get historical {coingecko_id} data", e)
+
+        else:
+            print("Data successfully retrieved")
+            all_data = zip(
+                historical_data["prices"],
+                historical_data["market_caps"],
+                historical_data["total_volumes"]
+            )
+            async with async_session() as session:
+                asset_result = await session.execute(
+                    select(AssetData.date)
+                    .join(Asset)
+                    .filter(Asset.asset_name == asset_data["name"])
+                )
+                asset_dates = asset_result.scalars().all()
+                if not asset_dates:
+                    new_asset = Asset(
+                        asset_name=asset_data["name"],
+                        asset_ticker=asset_data["symbol"].upper()
                     )
-                
+                    session.add(new_asset)
+                    await session.commit()
+
+                asset_dates_set = {row for row in asset_dates}
+
                 for price, mcap, vol in all_data:
+
                     # Coingecko data formatted as a list of lists where [0] for every entry is the unix time of candle close.
-                    unix_seconds = price[0]/1000
+                    unix_seconds = price[0] / 1000
                     close_date_time = datetime.fromtimestamp(unix_seconds)
                     close_date = close_date_time.date()
                     asset_name = asset_data["name"]
@@ -156,25 +173,22 @@ class CryptoManager:
                     asset_mcap = mcap[1]
                     asset_vol = vol[1]
 
-                    # Check if close data already exists for a certain day and if so, skip saving it to Postgres
-                    asset_result = await session.execute(select(Asset).filter_by(asset_ticker=asset_ticker))
-                    asset = asset_result.scalars().first()
-                    existing_entry_result = await session.execute(
-                        select(AssetData)
-                        .filter_by(date=close_date, asset_id=asset.asset_id)
-                    )
-                    existing_entry = existing_entry_result.scalars().first()
-
-                    if existing_entry:
+                    # Check if close data already exists for the iterated day and if so, skip saving it to Postgres
+                    if close_date in asset_dates_set:
                         continue
 
                     await save_data_to_postgres(
                         name=asset_name,
-                        ticker=asset_ticker, 
-                        price=asset_price, 
-                        mcap=asset_mcap, 
-                        volume=asset_vol, 
+                        ticker=asset_ticker,
+                        price=asset_price,
+                        mcap=asset_mcap,
+                        volume=asset_vol,
                         date=close_date
-                        )
-                    
+                    )
+
                 print(f"Saved {coingecko_id} market data to Postgres db, going back {num_days} days")
+
+
+if __name__ == "__main__":
+    man = CryptoManager()
+    asyncio.run(man.cg_to_postgres_daily_closes("binancecoin", "365"))
