@@ -2,19 +2,9 @@ import aiosmtplib
 import httpx
 from email.mime.multipart import MIMEMultipart
 from email.mime.text import MIMEText
-from pydantic import BaseModel
-from pydantic_settings import BaseSettings, SettingsConfigDict
 
-
-class UserData(BaseModel):
-    data: list[dict]
-
-
-class Settings(BaseSettings):
-    model_config = SettingsConfigDict(env_file='.env', env_file_encoding='utf-8', extra='allow')
-    smtp_port: int
-
-
+from validators import GoogleDriveData
+from config import Settings
 settings = Settings()
 
 
@@ -27,9 +17,9 @@ class EmailNotifier:
         self._smtp_password = settings.smtp_password
         self._sheety_endpoint = settings.sheety_users_endpoint
         self._sheety_header = {"Authorization": settings.sheety_bearer}
-        self.users_data = []
+        self.users_data = GoogleDriveData()
 
-    async def get_emails_data(self):
+    async def get_emails_data(self) -> None:
         """API request to get all stored user data"""
 
         try:
@@ -45,9 +35,9 @@ class EmailNotifier:
             print(f"Failed to retrieve user preferences from Sheety API", e)
         else:
             print("Storing user preferences")
-            self.users_data = UserData(data=data)
+            self.users_data = GoogleDriveData(data=data)
 
-    async def send_emails(self, user_email, subject, html_text):
+    async def send_emails(self, user_email: str, subject: str, html_text: str) -> None:
         """Emails requested data to users via MIME multipart and SMTP and checks for successful delivery"""
 
         print(f"Emailing {user_email}...")

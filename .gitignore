@@ -1,6 +1,8 @@
 .env
 __pycache__
 .venv/
+.idea/
+*.iml
 notes.txt
-emailtest.py
 stock_data_polygon.py
+main310.py

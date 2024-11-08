@@ -1,40 +1,12 @@
 import httpx
-from pydantic import BaseModel, field_validator
-from pydantic_settings import BaseSettings, SettingsConfigDict
+import asyncio
+from datetime import datetime
+from sqlalchemy import select
 
-
-class CryptoDict(BaseModel):
-    ticker: str
-    ticker_upper: str
-    price: float | int
-    mcap: float | int
-    total_volume: float | int
-    change_usd_24h: float | int
-    change_percent_24h: float | int
-    change_percent_7d: float | int
-    change_percent_30d: float | int
-
-    @field_validator("price")
-    def format_price(cls, price: float | int) -> str:
-        if price >= 1:
-            return f"${price:,.2f}"
-        elif price >= 0.01:
-            return f"${price:,.4f}"
-        else:
-            return f"${price:,.8f}"
-
-    @field_validator("mcap", "total_volume", "change_usd_24h")
-    def format_to_dollars(cls, price: float | int) -> str:
-        return f"${price:,.2f}"
-
-    @field_validator("change_percent_24h", "change_percent_7d", "change_percent_30d")
-    def format_percentages(cls, percent: float | int) -> str:
-        return f"{round(percent, 2)}"
-
-
-class Settings(BaseSettings):
-    model_config = SettingsConfigDict(env_file='.env', env_file_encoding='utf-8', extra='allow')
-
+from models import Asset, AssetData
+from validators import CryptoData
+from utils import save_data_to_postgres
+from config import Settings, async_session
 
 settings = Settings()
 
@@ -82,12 +54,9 @@ class CryptoManager:
             "x-cg-demo-api-key": settings.coingecko_api_key,
         }
 
-    async def get_crypto_data(self, asset):
+    async def get_crypto_data(self, asset: str) -> None:
         """Gets user requested data from CoinGecko API and formats into a nested dictionary.
         Also adds commas/punctuation and rounds to two decimal places."""
-
-        # Create empty dictionary entry to ensure emails are the same order/format for every notification
-        self.crypto_data[asset] = None
 
         try:
             print(f"Getting data for {asset.title()}...")
@@ -103,12 +72,12 @@ class CryptoManager:
         except Exception as e:
             print(f"Failed to get data for {asset.title()}", e)
         else:
-            self.crypto_data[asset] = CryptoDict(
-                ticker=data["symbol"],
-                ticker_upper=data["symbol"].upper(),
+            self.crypto_data[asset] = CryptoData(
+                name=data["name"],
+                ticker=data["symbol"].upper(),
                 price=data["market_data"]["current_price"]["usd"],
                 mcap=data["market_data"]["market_cap"]["usd"],
-                total_volume=data["market_data"]["total_volume"]["usd"],
+                volume=data["market_data"]["total_volume"]["usd"],
                 change_usd_24h=data["market_data"]["price_change_24h_in_currency"]["usd"],
                 change_percent_24h=data['market_data']['price_change_percentage_24h'],
                 change_percent_7d=data['market_data']['price_change_percentage_7d'],
@@ -116,7 +85,7 @@ class CryptoManager:
             )
             print(f"Updated {asset.title()} data")
 
-    async def get_global_crypto_data(self):
+    async def get_global_crypto_data(self) -> None:
         """Coingecko API request to get data related to entire crypto market"""
 
         try:
@@ -134,5 +103,96 @@ class CryptoManager:
             if self.global_crypto_data["data"]["market_cap_percentage"]:
                 self.crypto_total_mcap_top10_percents = self.global_crypto_data["data"]["market_cap_percentage"]
             if self.global_crypto_data["data"]["total_market_cap"]["usd"]:
-                self.crypto_total_mcap = f"${self.global_crypto_data['data']['total_market_cap']['usd']:,.2f}"
+                self.crypto_total_mcap = self.global_crypto_data['data']['total_market_cap']['usd']
             print("Retrieved global crypto market data")
+
+    async def cg_history_to_postgres(
+            self,
+            coingecko_id: str,
+            num_days: str = "365",
+            interval: str = "daily",
+            precision: str = "2"
+    ):
+        """Gets historical daily closing data from Coingecko API and saves to Postgres database.
+        num_days (default= "365") is the number of days to go back for historical data.
+        interval (default = "daily") can also be "hourly", "5-minutely", etc.
+        precision (default = "2") is the desired # of decimal places in the returned values."""
+
+        print(f"Getting historical crypto market data for {coingecko_id}...")
+        try:
+            async with httpx.AsyncClient() as client:
+                historical_response, asset_response = await asyncio.gather(
+                    client.get(
+                        url=f"{self._cg_endpoint}/coins/{coingecko_id}/market_chart",
+                        headers=self._cg_header,
+                        params={
+                            "vs_currency": "usd",
+                            "days": num_days,
+                            "interval": interval,  # Can also do "hourly", "5-minutely"
+                            "precision": precision  # Decimal places for price value
+                        }
+                    ),
+                    client.get(
+                        url=f"{self._cg_endpoint}/coins/{coingecko_id}",
+                        headers=self._cg_header,
+                        params={"id": coingecko_id}
+                    ))
+
+            historical_response.raise_for_status()
+            historical_data = historical_response.json()
+            asset_response.raise_for_status()
+            asset_data = asset_response.json()
+
+        except Exception as e:
+            print(f"Failed to get historical {coingecko_id} data", e)
+
+        else:
+            print("Data successfully retrieved")
+            all_data = zip(
+                historical_data["prices"],
+                historical_data["market_caps"],
+                historical_data["total_volumes"]
+            )
+            async with async_session() as session:
+                asset_result = await session.execute(
+                    select(AssetData.date)
+                    .join(Asset)
+                    .filter(Asset.asset_name == asset_data["name"])
+                )
+                asset_dates = asset_result.scalars().all()
+                if not asset_dates:
+                    new_asset = Asset(
+                        asset_name=asset_data["name"],
+                        asset_ticker=asset_data["symbol"].upper()
+                    )
+                    session.add(new_asset)
+                    await session.commit()
+
+                asset_dates_set = {row for row in asset_dates}
+
+                for price, mcap, vol in all_data:
+
+                    # Coingecko data formatted as a list of lists where [0] for every entry is the unix time of candle close.
+                    unix_seconds = price[0] / 1000
+                    close_date_time = datetime.fromtimestamp(unix_seconds)
+                    close_date = close_date_time.date()
+                    asset_name = asset_data["name"]
+                    asset_ticker = asset_data["symbol"].upper()
+                    asset_price = price[1]
+                    asset_mcap = mcap[1]
+                    asset_vol = vol[1]
+
+                    # Check if close data already exists for the iterated day and if so, skip saving it to Postgres
+                    if close_date in asset_dates_set:
+                        continue
+
+                    await save_data_to_postgres(
+                        name=asset_name,
+                        ticker=asset_ticker,
+                        price=asset_price,
+                        mcap=asset_mcap,
+                        volume=asset_vol,
+                        date=close_date
+                    )
+
+                print(f"Saved {coingecko_id} market data to Postgres db, going back {num_days} days")
