@@ -52,14 +52,14 @@ async def sign_up(email: str = Form(...), session: AsyncSession = Depends(async_
     try:
         user = UserSignup(email=email)
     except ValidationError as e:
-        raise HTTPException(status_code=400, detail={"message": "Submitted email not valid", "error": f"{e}"})
+        raise HTTPException(status_code=400, detail={"message": f"Submitted email, '{email}' not valid", "error": f"{e}"})
 
     user = User(
         email=user.email
     )
     session.add(user)
     await session.commit()
-    return {"message": f"{email} has been signed up for Daily Close Notifications"}
+    return {"message": f"'{email}' has been signed up for Daily Close Notifications"}
 
 
 @app.post("/unsubscribe")
@@ -71,11 +71,11 @@ async def unsubscribe_email(email: str = Form(...), session: AsyncSession = Depe
     user = user_result.scalars().first()
 
     if not user:
-        raise HTTPException(status_code=400, detail="Email is not registered in our database.")
+        raise HTTPException(status_code=400, detail=f"'{email}' is not registered in our database.")
 
     user.unsubscribe = True
     await session.commit()
-    return {"message": f"{email} has been unsubscribed"}
+    return {"message": f"'{email}' has been unsubscribed"}
 
 
 @app.get("/data/{ticker}/{date}")
@@ -101,10 +101,10 @@ async def get_data_on_date(ticker: str, date: str, session: AsyncSession = Depen
         asset_result = await session.execute(select(Asset).filter_by(asset_ticker=ticker))
         asset = asset_result.scalars().first()
         if not asset:
-            raise HTTPException(status_code=404, detail="Asset not found in database")
+            raise HTTPException(status_code=404, detail=f"{ticker} not found in the database")
 
         # Asset exists, so there must not exist data on the specified date for the Asset
-        raise HTTPException(status_code=404, detail="No data recorded for the specified date")
+        raise HTTPException(status_code=404, detail=f"No data recorded for {ticker} on {date}")
 
     data_to_return = {
         "date": asset_data.date,
@@ -134,7 +134,7 @@ async def get_all_data_on_date(date: str, session: AsyncSession = Depends(async_
         .filter(AssetData.date == query_date))
     data = data_result.scalars().all()
     if not data:
-        raise HTTPException(status_code=404, detail="No data recorded for the specified date")
+        raise HTTPException(status_code=404, detail=f"No data found for {date}")
 
     data_to_return = {
         "date": query_date
@@ -196,7 +196,7 @@ async def compare_date_data(ticker: str, date1: str, date2: str):
         asset = asset_result.scalars().first()
 
         if not asset:
-            raise HTTPException(status_code=404, detail="Asset not found in database")
+            raise HTTPException(status_code=404, detail=f"{ticker} not found in database")
 
         raise HTTPException(status_code=404, detail=f"No data recorded for {ticker} on either date")
 
