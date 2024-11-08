@@ -1,7 +1,7 @@
 from pydantic import BaseModel, field_validator, model_validator, EmailStr
 
 
-class CryptoDict(BaseModel):
+class CryptoData(BaseModel):
     name: str
     ticker: str
     price: float | int
@@ -26,7 +26,7 @@ class CryptoDict(BaseModel):
         return values
 
 
-class StockDict(BaseModel):
+class StockData(BaseModel):
     name: str
     ticker: str
     close: float

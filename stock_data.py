@@ -1,5 +1,5 @@
 import httpx
-from validators import StockDict
+from validators import StockData
 from config import Settings
 settings = Settings()
 
@@ -48,7 +48,7 @@ class StockManager:
         else:
             ticker = data['data'][0]['d'][0]
 
-            self.index_data[ticker] = StockDict(
+            self.index_data[ticker] = StockData(
                 name=ticker,
                 ticker=ticker,
                 close=data['data'][0]['d'][1],

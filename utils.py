@@ -1,4 +1,4 @@
-from sqlalchemy import select, Date
+from sqlalchemy import select, date
 from models import Asset, AssetData
 from config import Session
 
@@ -29,7 +29,7 @@ def htf_msg(timeframe: str, percent_change: float) -> str:
     return message_add
 
 
-def format_coingecko_ids(options_string: str) -> list[str]:
+def format_coingecko_ids(options_string: str | None) -> list[str]:
     """Receives a JSON formatted string of user chosen cryptocurrencies
     and formats into a list that is compatible with the Coingecko API asset IDs"""
     options = options_string.split()
@@ -69,7 +69,7 @@ def format_dollars(price: float | int) -> str:
         return f"${price:,.8f}"
 
 
-def format_percent(percent: float) -> str:
+def format_percent(percent: float | int) -> str:
     """Formats a float/integer input as a percentage into a string with punctuation, rounded to two decimal places"""
     return f"{round(percent, 2)}%"
 
@@ -80,7 +80,7 @@ async def save_data_to_postgres(
         price: float | int, 
         mcap: float | int, 
         volume: int, 
-        date: Date = None
+        date: date = None
         ) -> None:
     """Checks for existence of asset in Postgres database, adds it if nonexistent, and updates associated data"""
 

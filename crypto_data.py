@@ -4,9 +4,9 @@ from datetime import datetime
 from sqlalchemy import select
 
 from models import Asset, AssetData
-from validators import CryptoDict
+from validators import CryptoData
 from utils import save_data_to_postgres
-from config import Settings, Session, async_session
+from config import Settings, async_session
 
 settings = Settings()
 
@@ -43,7 +43,7 @@ class CryptoManager:
             "ondo-finance",
             "mother-iggy"
         ]
-        self.crypto_data: CryptoDict = {}
+        self.crypto_data = {}
         self.global_crypto_data = {}
         # TODO: Consider making use of crypto_total_mcap_top10_percents
         self.crypto_total_mcap_top10_percents = None
@@ -72,7 +72,7 @@ class CryptoManager:
         except Exception as e:
             print(f"Failed to get data for {asset.title()}", e)
         else:
-            self.crypto_data[asset] = CryptoDict(
+            self.crypto_data[asset] = CryptoData(
                 name=data["name"],
                 ticker=data["symbol"].upper(),
                 price=data["market_data"]["current_price"]["usd"],
@@ -106,8 +106,17 @@ class CryptoManager:
                 self.crypto_total_mcap = self.global_crypto_data['data']['total_market_cap']['usd']
             print("Retrieved global crypto market data")
 
-    async def cg_to_postgres_daily_closes(self, coingecko_id: str, num_days: str):
-        """Gets historical daily closing data from Coingecko API and saves to Postgres database"""
+    async def cg_history_to_postgres(
+            self,
+            coingecko_id: str,
+            num_days: str = "365",
+            interval: str = "daily",
+            precision: str = "2"
+    ):
+        """Gets historical daily closing data from Coingecko API and saves to Postgres database.
+        num_days (default= "365") is the number of days to go back for historical data.
+        interval (default = "daily") can also be "hourly", "5-minutely", etc.
+        precision (default = "2") is the desired # of decimal places in the returned values."""
 
         print(f"Getting historical crypto market data for {coingecko_id}...")
         try:
@@ -119,8 +128,8 @@ class CryptoManager:
                         params={
                             "vs_currency": "usd",
                             "days": num_days,
-                            "interval": "daily",  # Can also do "hourly", "5-minutely"
-                            "precision": "2"  # Decimal places for price value
+                            "interval": interval,  # Can also do "hourly", "5-minutely"
+                            "precision": precision  # Decimal places for price value
                         }
                     ),
                     client.get(
@@ -187,8 +196,3 @@ class CryptoManager:
                     )
 
                 print(f"Saved {coingecko_id} market data to Postgres db, going back {num_days} days")
-
-
-if __name__ == "__main__":
-    man = CryptoManager()
-    asyncio.run(man.cg_to_postgres_daily_closes("binancecoin", "365"))

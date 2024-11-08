@@ -17,7 +17,7 @@ class EmailNotifier:
         self._smtp_password = settings.smtp_password
         self._sheety_endpoint = settings.sheety_users_endpoint
         self._sheety_header = {"Authorization": settings.sheety_bearer}
-        self.users_data: GoogleDriveData = []
+        self.users_data = GoogleDriveData()
 
     async def get_emails_data(self) -> None:
         """API request to get all stored user data"""
